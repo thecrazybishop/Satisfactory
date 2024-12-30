@@ -44,25 +44,34 @@ class Items:
             total_ingredients[self.flu_ingr1_name] = self.flu_ingr1_ratio * desired_output_rate
         return total_ingredients
 #  for testing
-item1 = Items(
+iron_plate = Items(
     name="Iron Plate",
     prod_in="Constructor",
     ipm=20,
     sol_ingr1_name="Iron Ingot",
-    sol_ingr1_ratio=1.6667,
+    sol_ingr1_ratio=1.5,
 )
 #  for testing
-item2 = Items(
+iron_rod = Items(
     name="Iron Rod",
     prod_in="Constructor",
     ipm=15,
     sol_ingr1_name="Iron Ingot",
     sol_ingr1_ratio=1,
 )
+screw = Items(
+    name="Screw",
+    prod_in="Constructor",
+    ipm=40,
+    sol_ingr1_name="Iron Rod",
+    sol_ingr1_ratio=.25,
+)
+rein_iron_plate = Items(
+    
 
 items_list = [item1, item2]
 
-desired_output_rate = 500
+desired_output_rate = 30
 for item in items_list:
     total_ingredients = item.calculate_total_ingredients(desired_output_rate)
     print(f"Total ingredients needed to produce {desired_output_rate} {item.name} per minute:")
