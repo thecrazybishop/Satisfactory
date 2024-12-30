@@ -3,58 +3,56 @@ Stores all the items in Satisfactory
 """
 
 class Items:
-    def __init__(self, name, prod_in, ipm, sol_ingr1=None, sol_ingr2=None, sol_ingr3=None,
-                 sol_ing4=None, flu_ingr1=None, sol_waste=None, flu_waste=None):
+    def __init__(self, name, prod_in, ipm, sol_ingr1_name=None, sol_ingr1_ratio=None, sol_ingr2_name=None, sol_ingr2_ratio=None,
+                 sol_ingr3_name=None, sol_ingr3_ratio=None, sol_ingr4_name=None, sol_ingr4_ratio=None, flu_ingr1_name=None,
+                 flu_ingr1_ratio=None, sol_waste_name=None, sol_waste_ratio=None, flu_waste_name=None, flu_waste_ratio=None):
         self.name = name
         #  What machine it is produced in
         self.prod_in = prod_in
         #  how many items per min
         self.ipm = ipm
         #  first solid ingredient
-        self.sol_ingr1 = sol_ingr1
-        self.sol_ingr2 = sol_ingr2
-        self.sol_ingr3 = sol_ingr3
-        self.sol_ingr4 = sol_ing4
-        self.flu_ingr1 = flu_ingr1
-        self.sol_waste = sol_waste
-        self.flu_waste = flu_waste
+        self.sol_ingr1_name = sol_ingr1_name
+        self.sol_ingr1_amt = sol_ingr1_ratio
+        self.sol_ingr2_name = sol_ingr2_name
+        self.sol_ingr2_amt = sol_ingr2_ratio
+        self.sol_ingr3_name = sol_ingr3_name
+        self.sol_ingr3_amt = sol_ingr3_ratio
+        self.sol_ingr_4_name = sol_ingr4_name
+        self.sol_ingr4_amt = sol_ingr4_ratio
+        self.flu_ingr1_name = flu_ingr1_name
+        self.flu_ingr1_amt = flu_ingr1_ratio
+        self.sol_waste_name = sol_waste_name
+        self.sol_waste_amt = sol_waste_ratio
+        self.flu_waste_name = flu_waste_name
+        self.flu_waste_amt = flu_waste_ratio
 
-    def __str__(self):
-        return "Item:" + self.name  + "\n" + "Produced in:" + self.prod_in + "\n" + "Rate:" + str(self.ipm)
+        def calculate_total_ingredients(self, desired_output_rate):
+            """
+            Calculates the total ingredients needed to produce the desired output rate
+            """
+            total_ingredients = {}
+            if self.sol_ingr1_name and self.sol_ingr1_ratio:
+                total_ingredients[self.sol_ingr1_name] = self.sol_ingr1_ratio * desired_output_rate
+            if self.sol_ingr2_name and self.sol_ingr2_ratio:
+                total_ingredients[self.sol_ingr2_name] = self.sol_ingr2_ratio * desired_output_rate
+            if self.sol_ingr3_name and self.sol_ingr3_ratio:
+                total_ingredients[self.sol_ingr3_name] = self.sol_ingr3_ratio * desired_output_rate
+            if self.sol_ingr4_name and self.sol_ingr4_ratio:
+                total_ingredients[self.sol_ingr4_name] = self.sol_ingr4_ratio * desired_output_rate
+            if self.flu_ingr1_name and self.flu_ingr1_ratio:
+                total_ingredients[self.flu_ingr1_name] = self.flu_ingr1_ratio * desired_output_rate
+            return total_ingredients
 
-    def calculate_total_ingredients(self, desired_output_rate):
-        total_ingredients = {}
 
-        def add_ingredient(ingredient, quantity):
-            if ingredient in total_ingredients:
-                total_ingredients[ingredient.name] += quantity
-            else:
-                total_ingredients[ingredient.name] = quantity
 
-        def calculate(item, multiplier):
-            if item.sol_ingr1:
-                add_ingredient(item.sol_ingr1, item.sol_ingr1.ipm * multiplier)
-                calculate(item.sol_ingr1, multiplier)
-            if item.sol_ingr2:
-                add_ingredient(item.sol_ingr2, item.sol_ingr2.ipm * multiplier)
-                calculate(item.sol_ingr2, multiplier)
-            if item.sol_ingr3:
-                add_ingredient(item.sol_ingr3, item.sol_ingr3.ipm * multiplier)
-                calculate(item.sol_ingr3, multiplier)
-            if item.sol_ingr4:
-                add_ingredient(item.sol_ingr4, item.sol_ingr4.ipm * multiplier)
-                calculate(item.sol_ingr4, multiplier)
-            if item.flu_ingr1:
-                add_ingredient(item.flu_ingr1, item.flu_ingr1.ipm * multiplier)
-                calculate(item.flu_ingr1, multiplier)
 
-        multiplier = desired_output_rate / self.ipm
-        calculate(self, multiplier)
-        return total_ingredients
 
-recipes = {
-    "Iron Ore": Items("Iron Ore", "Miner Mk.1", 60),
-}
+
+
+
+
+
 
 
 if __name__ == "__main__":
