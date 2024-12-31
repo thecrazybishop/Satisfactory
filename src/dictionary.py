@@ -76,6 +76,20 @@ copper_sheet = Items(
     sol_ingr1_name="Copper Ingot",
     sol_ingr1_ratio=1.5,
 )
+cateranium_ingot = Items(
+    name="Cateranium Ingot",
+    prod_in="Smelter",
+    ipm=30,
+    sol_ingr1_name="Cateranium Ore",
+    sol_ingr1_ratio=1,
+)
+quick_wire = Items(
+    name="Cateranium Wire",
+    prod_in="Constructor",
+    ipm=60,
+    sol_ingr1_name="Cateranium Ingot",
+    sol_ingr1_ratio=.2,
+)
 
 
 items_dict = {
@@ -89,4 +103,6 @@ items_dict = {
     "Copper Wire": copper_wire,
     "Cable": cable,
     "Copper Sheet": copper_sheet,
+    "Cateranium Ingot": cateranium_ingot,
+    "Quick Wire": quick_wire,
 }
