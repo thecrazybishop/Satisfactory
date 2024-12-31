@@ -3,6 +3,7 @@ import tkinter.messagebox as msg
 from entities import Items
 import dictionary
 
+
 def calculate_ingredients():
     try:
         selected_item = item_var.get()
@@ -19,6 +20,7 @@ def calculate_ingredients():
         msg.showinfo("Calculation Result", result)
     except ValueError:
         msg.showerror("Input Error", "Please enter a valid number")
+
 
 def create_window():
     # Create the main window
@@ -56,6 +58,7 @@ def create_window():
 
     # Start the Tkinter event loop
     root.mainloop()
+
 
 if __name__ == "__main__":
     create_window()
