@@ -32,10 +32,20 @@ rein_iron_plate = Items(
     sol_ingr2_name="Screw",
     sol_ingr2_ratio=12,
 )
+mod_frame = Items(
+    name="Modular Frame",
+    prod_in="Assembler",
+    ipm=2,
+    sol_ingr1_name="Reinforced Iron Plate",
+    sol_ingr1_ratio=1.5,
+    sol_ingr2_name="Iron Rod",
+    sol_ingr2_ratio=6
+)
 
 items_dict = {
     "Iron Plate": iron_plate,
     "Iron Rod": iron_rod,
     "Screw": screw,
     "Reinforced Iron Plate": rein_iron_plate,
+    "Modular Frame": mod_frame
 }
