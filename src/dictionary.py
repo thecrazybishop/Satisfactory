@@ -51,6 +51,7 @@ mod_frame = Items(
 
 
 items_dict = {
+    "Iron Ingot": iron_ingot,
     "Iron Plate": iron_plate,
     "Iron Rod": iron_rod,
     "Screw": screw,
