@@ -48,6 +48,34 @@ mod_frame = Items(
     sol_ingr2_name="Iron Rod",
     sol_ingr2_ratio=6
 )
+copper_ingot = Items(
+    name="Copper Ingot",
+    prod_in="Smelter",
+    ipm=30,
+    sol_ingr1_name="Copper Ore",
+    sol_ingr1_ratio=1,
+)
+copper_wire = Items(
+    name="Copper Wire",
+    prod_in="Constructor",
+    ipm=30,
+    sol_ingr1_name="Copper Ingot",
+    sol_ingr1_ratio=.5,
+)
+cable = Items(
+    name="Cable",
+    prod_in="Constructor",
+    ipm=30,
+    sol_ingr1_name="Copper Wire",
+    sol_ingr1_ratio=2,
+)
+copper_sheet = Items(
+    name="Copper Sheet",
+    prod_in="Constructor",
+    ipm=20,
+    sol_ingr1_name="Copper Ingot",
+    sol_ingr1_ratio=1.5,
+)
 
 
 items_dict = {
@@ -56,5 +84,9 @@ items_dict = {
     "Iron Rod": iron_rod,
     "Screw": screw,
     "Reinforced Iron Plate": rein_iron_plate,
-    "Modular Frame": mod_frame
+    "Modular Frame": mod_frame,
+    "Copper Ingot": copper_ingot,
+    "Copper Wire": copper_wire,
+    "Cable": cable,
+    "Copper Sheet": copper_sheet,
 }
