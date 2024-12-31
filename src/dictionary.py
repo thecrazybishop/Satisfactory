@@ -1,5 +1,12 @@
 from entities import Items
 
+iron_ingot = Items(
+    name="Iron Ingot",
+    prod_in="Smelter",
+    ipm=30,
+    sol_ingr1_name="Iron Ore",
+    sol_ingr1_ratio=1,
+)
 iron_plate = Items(
     name="Iron Plate",
     prod_in="Constructor",
@@ -42,7 +49,9 @@ mod_frame = Items(
     sol_ingr2_ratio=6
 )
 
+
 items_dict = {
+    "Iron Ingot": iron_ingot,
     "Iron Plate": iron_plate,
     "Iron Rod": iron_rod,
     "Screw": screw,
