@@ -29,7 +29,7 @@ def create_window():
     root.geometry("400x300")
 
     # Add a label for the dropdown
-    label_item = tk.Label(root, text="Select Item:")
+    label_item = tk.Label(root, text="Select Item:", bg="white", fg="black")
     label_item.pack(pady=10)
 
     # Add a dropdown for item selection
@@ -37,20 +37,21 @@ def create_window():
     item_var = tk.StringVar(root)
     item_var.set(list(dictionary.items_dict.keys())[0])  # Set default value
     dropdown = tk.OptionMenu(root, item_var, *dictionary.items_dict.keys())
-    dropdown.config(bg="black", fg="white")
+    dropdown.config(bg="white", fg="black")
+    dropdown["menu"].config(bg="white", fg="black")
     dropdown.pack(pady=10)
 
     # Add a label for the entry
-    label_rate = tk.Label(root, text="Desired Output Rate (items per minute):", bg="black", fg="white")
+    label_rate = tk.Label(root, text="Desired Output Rate (items per minute):", bg="white", fg="black")
     label_rate.pack(pady=10)
 
     # Add an entry widget
     global entry
-    entry = tk.Entry(root)
+    entry = tk.Entry(root, bg="white", fg="black")
     entry.pack(pady=10)
 
     # Add a button to trigger the calculation
-    button = tk.Button(root, text="Calculate", command=calculate_ingredients)
+    button = tk.Button(root, text="Calculate", command=calculate_ingredients, bg="white", fg="black")
     button.pack(pady=10)
 
     # Start the Tkinter event loop
