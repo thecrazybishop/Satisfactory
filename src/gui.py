@@ -7,7 +7,7 @@ import dictionary
 def calculate_ingredients():
     try:
         selected_item = item_var.get()
-        desired_output_rate = int(entry.get())
+        desired_output_rate = slider.get()
         total_ingredients, breakdown = dictionary.items_dict[selected_item].calculate_total_ingredients(desired_output_rate, dictionary.items_dict)
         result = f"Total ingredients needed to produce {desired_output_rate} {selected_item}(s) per minute:\n"
         for ingredient, amount in total_ingredients.items():
@@ -48,9 +48,15 @@ def create_window():
     label_rate.pack(pady=10)
 
     # Add an entry widget
-    global entry
-    entry = tk.Entry(root, bg="white", fg="black")
-    entry.pack(pady=10)
+    global slider
+    slider = tk.Scale(root, from_=1, to=100, orient="horizontal", bg="black", fg="white")
+    slider.set(60) # Default is 60 items per minute because that is very common in the early game
+    slider.pack(pady=10)
+
+    # Add a label to display the current value of the slider
+    global slider_value_label
+    slider_value_label = tk.Label(root, text=f"Current Value: {slider.get()}", bg="white", fg="black")
+    slider_value_label.pack(pady=10)
 
     # Add a button to trigger the calculation
     button = tk.Button(root, text="Calculate", command=calculate_ingredients, bg="white", fg="black")
