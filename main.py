@@ -24,3 +24,7 @@ def load_env(path=".env", override=False):
 
 def main():
     load_env()
+
+    key = os.environ.get("FRM_KEY")
+
+
