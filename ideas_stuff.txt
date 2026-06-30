@@ -1,0 +1,3 @@
+Put all ingredient calculation results in to a list, then sort them, then sum like names, then show final
+
+put all ingrident names and stuff in lists so that they can be parsed in a database (for menus and stuff)
