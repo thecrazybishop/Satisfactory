@@ -98,17 +98,21 @@ class MainWindow(tk.Tk):
         notebook.add(frame, text="Power")
 
         summary = ttk.Frame(frame)
-        summary.pack(fill="x", padx=10, pady=10)
+        summary.pack(fill="x", padx=10, pady=(10, 0))
 
         self.power_summary_vars = {
             "production": tk.StringVar(value="Production: -- MW"),
             "capacity": tk.StringVar(value="Capacity: -- MW"),
             "consumption": tk.StringVar(value="Consumption: -- MW"),
+            "usage_pct": tk.StringVar(value="Usage: -- % of capacity"),
         }
-        for key in ("production", "capacity", "consumption"):
+        for key in ("production", "capacity", "consumption", "usage_pct"):
             ttk.Label(
                 summary, textvariable=self.power_summary_vars[key], font=("TkDefaultFont", 14, "bold")
             ).pack(side="left", padx=20)
+
+        self.power_usage_bar = ttk.Progressbar(frame, orient="horizontal", mode="determinate", maximum=100)
+        self.power_usage_bar.pack(fill="x", padx=10, pady=10)
 
         columns = (
             "circuit",
@@ -131,13 +135,28 @@ class MainWindow(tk.Tk):
             "fuse": "Fuse Tripped",
         }
 
-        tree = ttk.Treeview(frame, columns=columns, show="headings")
+        table_frame = ttk.Frame(frame)
+        table_frame.pack(fill="x", padx=10, pady=(0, 10))
+
+        tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=6)
         for col in columns:
             tree.heading(col, text=headings[col])
             tree.column(col, width=120, anchor="w")
-        tree.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        tree.pack(fill="x", side="left", expand=True)
+
+        table_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscroll=table_scrollbar.set)
+        table_scrollbar.pack(side="right", fill="y")
 
         self.power_tree = tree
+
+        self.power_figure = Figure(figsize=(6, 3), dpi=100)
+        self.power_ax = self.power_figure.add_subplot(111)
+        self.power_ax.set_xlabel("Seconds ago")
+        self.power_ax.set_ylabel("MW")
+
+        self.power_canvas = FigureCanvasTkAgg(self.power_figure, master=frame)
+        self.power_canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
     # -- refresh loop -----------------------------------------------------
 
@@ -148,6 +167,7 @@ class MainWindow(tk.Tk):
             session_info = self.state_.session_info
             recipes = dict(self.state_.recipes)
             power_circuits = list(self.state_.power_circuits)
+            power_history = list(self.state_.power_history)
             history_snapshot = {recipe: list(points) for recipe, points in self.state_.history.items()}
 
         self._update_status(connected, last_error, session_info)
@@ -155,6 +175,7 @@ class MainWindow(tk.Tk):
         self._update_history_controls(recipes)
         self._redraw_history(history_snapshot)
         self._update_power_tab(power_circuits)
+        self._redraw_power_history(power_history)
 
         self.after(UI_REFRESH_MS, self._refresh)
 
@@ -245,9 +266,32 @@ class MainWindow(tk.Tk):
                 ),
             )
 
+        usage_pct = (total_consumption / total_capacity * 100.0) if total_capacity else 0.0
+
         self.power_summary_vars["production"].set(f"Production: {total_production:.1f} MW")
         self.power_summary_vars["capacity"].set(f"Capacity: {total_capacity:.1f} MW")
         self.power_summary_vars["consumption"].set(f"Consumption: {total_consumption:.1f} MW")
+        self.power_summary_vars["usage_pct"].set(f"Usage: {usage_pct:.1f}% of capacity")
+        self.power_usage_bar["value"] = min(usage_pct, 100.0)
+
+    def _redraw_power_history(self, power_history):
+        self.power_ax.clear()
+        self.power_ax.set_xlabel("Seconds ago")
+        self.power_ax.set_ylabel("MW")
+        self.power_ax.set_title("Power over time")
+
+        if power_history:
+            now = datetime.now()
+            xs = [-(now - ts).total_seconds() for ts, _p, _c, _cap in power_history]
+            production = [p for _ts, p, _c, _cap in power_history]
+            consumption = [c for _ts, _p, c, _cap in power_history]
+            capacity = [cap for _ts, _p, _c, cap in power_history]
+            self.power_ax.plot(xs, production, label="Production")
+            self.power_ax.plot(xs, consumption, label="Consumption")
+            self.power_ax.plot(xs, capacity, label="Capacity", linestyle="--")
+            self.power_ax.legend(loc="upper left")
+
+        self.power_canvas.draw_idle()
 
     def _on_close(self):
         self.poller.stop()

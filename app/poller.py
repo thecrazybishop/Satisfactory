@@ -59,6 +59,14 @@ def aggregate_factory_by_recipe(buildings):
     return by_recipe
 
 
+def total_power(power_circuits):
+    """Sum production/consumption/capacity across all circuits."""
+    production = sum((c.get("PowerProduction") or 0.0) for c in power_circuits)
+    consumption = sum((c.get("PowerConsumed") or 0.0) for c in power_circuits)
+    capacity = sum((c.get("PowerCapacity") or 0.0) for c in power_circuits)
+    return production, consumption, capacity
+
+
 class SharedState:
     """Snapshot of the latest poll, guarded by `lock`. Read it under the lock
     and copy out whatever you need before releasing it.
@@ -69,6 +77,7 @@ class SharedState:
         self.session_info = None
         self.recipes: dict[str, RecipeStats] = {}
         self.power_circuits: list[dict] = []
+        self.power_history: deque = deque(maxlen=HISTORY_MAXLEN)
         self.history: dict[str, deque] = defaultdict(lambda: deque(maxlen=HISTORY_MAXLEN))
         self.connected = False
         self.last_error = None
@@ -130,3 +139,6 @@ class Poller(threading.Thread):
             self.state.power_circuits = power_circuits or []
             for recipe, stats in by_recipe.items():
                 self.state.history[recipe].append((timestamp, stats.total_produced, stats.total_consumed))
+
+            production, consumption, capacity = total_power(self.state.power_circuits)
+            self.state.power_history.append((timestamp, production, consumption, capacity))
