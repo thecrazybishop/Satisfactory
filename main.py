@@ -1,7 +1,8 @@
 import os
-import time
 
-from frm import FRMClient, FRMError
+from app.gui import MainWindow
+from app.poller import Poller, SharedState
+from frm import FRMClient
 
 
 def load_env(path=".env", override=False):
@@ -31,16 +32,12 @@ def main():
     port = int(os.environ.get("FRM_PORT", 8080))
 
     client = FRMClient(host=host, port=port, token=token)
+    state = SharedState()
+    poller = Poller(client, state)
+    poller.start()
 
-    while True:
-        time.sleep(1)
-        try:
-            session_info = client.getSessionInfo()
-        except FRMError as exc:
-            print(f"Could not reach FRM server at {client.base_url}: {exc}")
-            return
-
-        print(session_info)
+    window = MainWindow(state, poller)
+    window.mainloop()
 
 
 if __name__ == "__main__":
