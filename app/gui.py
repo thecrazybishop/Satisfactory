@@ -16,6 +16,19 @@ from .poller import Poller, SharedState  # noqa: E402
 
 UI_REFRESH_MS = 1000
 
+HORIZON_OPTIONS = [
+    ("1 second", 1),
+    ("5 seconds", 5),
+    ("30 seconds", 30),
+    ("1 minute", 60),
+    ("5 minutes", 300),
+    ("15 minutes", 900),
+    ("30 minutes", 1800),
+    ("1 hour", 3600),
+]
+HORIZON_SECONDS_BY_LABEL = dict(HORIZON_OPTIONS)
+DEFAULT_HORIZON_LABEL = "5 minutes"
+
 
 class MainWindow(tk.Tk):
     def __init__(self, state: SharedState, poller: Poller):
@@ -25,7 +38,7 @@ class MainWindow(tk.Tk):
 
         self.state_ = state
         self.poller = poller
-        self._known_recipes: list[str] = []
+        self._known_items: list[str] = []
 
         self._build_widgets()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -78,20 +91,48 @@ class MainWindow(tk.Tk):
 
         controls = ttk.Frame(frame)
         controls.pack(fill="x", padx=8, pady=8)
-        ttk.Label(controls, text="Recipe:").pack(side="left")
+        ttk.Label(controls, text="Item:").pack(side="left")
 
-        self.recipe_var = tk.StringVar()
-        self.recipe_combo = ttk.Combobox(controls, textvariable=self.recipe_var, state="readonly", width=40)
-        self.recipe_combo.pack(side="left", padx=6)
-        self.recipe_combo.bind("<<ComboboxSelected>>", lambda _evt: self._redraw_history())
+        self.item_var = tk.StringVar()
+        self.item_combo = ttk.Combobox(controls, textvariable=self.item_var, state="readonly", width=40)
+        self.item_combo.pack(side="left", padx=6)
+        self.item_combo.bind("<<ComboboxSelected>>", lambda _evt: self._redraw_history())
 
-        self.figure = Figure(figsize=(6, 4), dpi=100)
-        self.ax = self.figure.add_subplot(111)
-        self.ax.set_xlabel("Seconds ago")
-        self.ax.set_ylabel("Rate / min")
+        ttk.Label(controls, text="Time range:").pack(side="left", padx=(12, 0))
+        self.history_horizon_var = tk.StringVar(value=DEFAULT_HORIZON_LABEL)
+        history_horizon_combo = ttk.Combobox(
+            controls,
+            textvariable=self.history_horizon_var,
+            state="readonly",
+            width=12,
+            values=[label for label, _seconds in HORIZON_OPTIONS],
+        )
+        history_horizon_combo.pack(side="left", padx=6)
+        history_horizon_combo.bind("<<ComboboxSelected>>", lambda _evt: self._redraw_history())
 
-        self.canvas = FigureCanvasTkAgg(self.figure, master=frame)
-        self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=8, pady=8)
+        charts_frame = ttk.Frame(frame)
+        charts_frame.pack(fill="both", expand=True, padx=8, pady=8)
+
+        produced_frame = ttk.Frame(charts_frame)
+        produced_frame.pack(side="left", fill="both", expand=True, padx=(0, 4))
+        consumed_frame = ttk.Frame(charts_frame)
+        consumed_frame.pack(side="left", fill="both", expand=True, padx=(4, 0))
+
+        self.produced_figure = Figure(figsize=(5, 4), dpi=100)
+        self.produced_ax = self.produced_figure.add_subplot(111)
+        self.produced_ax.set_xlabel("Seconds ago")
+        self.produced_ax.set_ylabel("Rate / min")
+
+        self.produced_canvas = FigureCanvasTkAgg(self.produced_figure, master=produced_frame)
+        self.produced_canvas.get_tk_widget().pack(fill="both", expand=True)
+
+        self.consumed_figure = Figure(figsize=(5, 4), dpi=100)
+        self.consumed_ax = self.consumed_figure.add_subplot(111)
+        self.consumed_ax.set_xlabel("Seconds ago")
+        self.consumed_ax.set_ylabel("Rate / min")
+
+        self.consumed_canvas = FigureCanvasTkAgg(self.consumed_figure, master=consumed_frame)
+        self.consumed_canvas.get_tk_widget().pack(fill="both", expand=True)
 
     def _build_power_tab(self, notebook):
         frame = ttk.Frame(notebook)
@@ -150,6 +191,20 @@ class MainWindow(tk.Tk):
 
         self.power_tree = tree
 
+        power_controls = ttk.Frame(frame)
+        power_controls.pack(fill="x", padx=10, pady=(0, 4))
+        ttk.Label(power_controls, text="Time range:").pack(side="left")
+        self.power_horizon_var = tk.StringVar(value=DEFAULT_HORIZON_LABEL)
+        power_horizon_combo = ttk.Combobox(
+            power_controls,
+            textvariable=self.power_horizon_var,
+            state="readonly",
+            width=12,
+            values=[label for label, _seconds in HORIZON_OPTIONS],
+        )
+        power_horizon_combo.pack(side="left", padx=6)
+        power_horizon_combo.bind("<<ComboboxSelected>>", lambda _evt: self._redraw_power_history())
+
         self.power_figure = Figure(figsize=(6, 3), dpi=100)
         self.power_ax = self.power_figure.add_subplot(111)
         self.power_ax.set_xlabel("Seconds ago")
@@ -166,13 +221,14 @@ class MainWindow(tk.Tk):
             last_error = self.state_.last_error
             session_info = self.state_.session_info
             recipes = dict(self.state_.recipes)
+            items = dict(self.state_.items)
             power_circuits = list(self.state_.power_circuits)
             power_history = list(self.state_.power_history)
-            history_snapshot = {recipe: list(points) for recipe, points in self.state_.history.items()}
+            history_snapshot = {item: list(points) for item, points in self.state_.item_history.items()}
 
         self._update_status(connected, last_error, session_info)
         self._update_production_tab(recipes)
-        self._update_history_controls(recipes)
+        self._update_history_controls(items)
         self._redraw_history(history_snapshot)
         self._update_power_tab(power_circuits)
         self._redraw_power_history(power_history)
@@ -203,37 +259,53 @@ class MainWindow(tk.Tk):
                 values=(recipe, stats.machine_count, produced, consumed, f"{stats.avg_efficiency:.1f}%"),
             )
 
-    def _update_history_controls(self, recipes):
-        recipe_names = sorted(recipes)
-        if recipe_names != self._known_recipes:
-            self._known_recipes = recipe_names
-            self.recipe_combo["values"] = recipe_names
-            if not self.recipe_var.get() and recipe_names:
-                self.recipe_var.set(recipe_names[0])
+    def _update_history_controls(self, items):
+        item_names = sorted(items)
+        if item_names != self._known_items:
+            self._known_items = item_names
+            self.item_combo["values"] = item_names
+            if not self.item_var.get() and item_names:
+                self.item_var.set(item_names[0])
 
     def _redraw_history(self, history_snapshot=None):
-        recipe = self.recipe_var.get()
+        item = self.item_var.get()
         if history_snapshot is None:
             with self.state_.lock:
-                history_snapshot = {recipe: list(self.state_.history.get(recipe, []))}
+                history_snapshot = {item: list(self.state_.item_history.get(item, []))}
 
-        points = history_snapshot.get(recipe, [])
+        points = history_snapshot.get(item, [])
+        horizon_seconds = HORIZON_SECONDS_BY_LABEL.get(
+            self.history_horizon_var.get(), HORIZON_SECONDS_BY_LABEL[DEFAULT_HORIZON_LABEL]
+        )
 
-        self.ax.clear()
-        self.ax.set_xlabel("Seconds ago")
-        self.ax.set_ylabel("Rate / min")
-        self.ax.set_title(recipe or "No recipe selected")
+        title = item or "No item selected"
+
+        self.produced_ax.clear()
+        self.produced_ax.set_xlabel("Seconds ago")
+        self.produced_ax.set_ylabel("Rate / min")
+        self.produced_ax.set_title(f"{title} — Produced/min")
+        self.produced_ax.set_xlim(-horizon_seconds, 0)
+
+        self.consumed_ax.clear()
+        self.consumed_ax.set_xlabel("Seconds ago")
+        self.consumed_ax.set_ylabel("Rate / min")
+        self.consumed_ax.set_title(f"{title} — Consumed/min")
+        self.consumed_ax.set_xlim(-horizon_seconds, 0)
 
         if points:
             now = datetime.now()
-            xs = [-(now - ts).total_seconds() for ts, _p, _c in points]
-            produced = [p for _ts, p, _c in points]
-            consumed = [c for _ts, _p, c in points]
-            self.ax.plot(xs, produced, label="Produced/min")
-            self.ax.plot(xs, consumed, label="Consumed/min")
-            self.ax.legend(loc="upper left")
+            visible = [(ts, p, c) for ts, p, c in points if (now - ts).total_seconds() <= horizon_seconds]
+            if visible:
+                xs = [-(now - ts).total_seconds() for ts, _p, _c in visible]
+                produced = [p for _ts, p, _c in visible]
+                consumed = [c for _ts, _p, c in visible]
+                self.produced_ax.plot(xs, produced, color="tab:green", label="Produced/min")
+                self.produced_ax.legend(loc="upper left")
+                self.consumed_ax.plot(xs, consumed, color="tab:red", label="Consumed/min")
+                self.consumed_ax.legend(loc="upper left")
 
-        self.canvas.draw_idle()
+        self.produced_canvas.draw_idle()
+        self.consumed_canvas.draw_idle()
 
     def _update_power_tab(self, circuits):
         tree = self.power_tree
@@ -274,22 +346,35 @@ class MainWindow(tk.Tk):
         self.power_summary_vars["usage_pct"].set(f"Usage: {usage_pct:.1f}% of capacity")
         self.power_usage_bar["value"] = min(usage_pct, 100.0)
 
-    def _redraw_power_history(self, power_history):
+    def _redraw_power_history(self, power_history=None):
+        if power_history is None:
+            with self.state_.lock:
+                power_history = list(self.state_.power_history)
+
+        horizon_seconds = HORIZON_SECONDS_BY_LABEL.get(
+            self.power_horizon_var.get(), HORIZON_SECONDS_BY_LABEL[DEFAULT_HORIZON_LABEL]
+        )
+
         self.power_ax.clear()
         self.power_ax.set_xlabel("Seconds ago")
         self.power_ax.set_ylabel("MW")
         self.power_ax.set_title("Power over time")
+        self.power_ax.set_xlim(-horizon_seconds, 0)
 
         if power_history:
             now = datetime.now()
-            xs = [-(now - ts).total_seconds() for ts, _p, _c, _cap in power_history]
-            production = [p for _ts, p, _c, _cap in power_history]
-            consumption = [c for _ts, _p, c, _cap in power_history]
-            capacity = [cap for _ts, _p, _c, cap in power_history]
-            self.power_ax.plot(xs, production, label="Production")
-            self.power_ax.plot(xs, consumption, label="Consumption")
-            self.power_ax.plot(xs, capacity, label="Capacity", linestyle="--")
-            self.power_ax.legend(loc="upper left")
+            visible = [
+                (ts, p, c, cap) for ts, p, c, cap in power_history if (now - ts).total_seconds() <= horizon_seconds
+            ]
+            if visible:
+                xs = [-(now - ts).total_seconds() for ts, _p, _c, _cap in visible]
+                production = [p for _ts, p, _c, _cap in visible]
+                consumption = [c for _ts, _p, c, _cap in visible]
+                capacity = [cap for _ts, _p, _c, cap in visible]
+                self.power_ax.plot(xs, production, label="Production")
+                self.power_ax.plot(xs, consumption, label="Consumption")
+                self.power_ax.plot(xs, capacity, label="Capacity", linestyle="--")
+                self.power_ax.legend(loc="upper left")
 
         self.power_canvas.draw_idle()
 

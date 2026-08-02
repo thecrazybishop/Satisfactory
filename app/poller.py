@@ -11,7 +11,7 @@ from datetime import datetime
 from frm import FRMClient, FRMError
 
 POLL_INTERVAL_SECONDS = 1.0
-HISTORY_MAXLEN = 1800  # ~30 minutes of history at a 1s poll interval
+HISTORY_MAXLEN = 3600  # 1 hour of history at a 1s poll interval
 
 
 class RecipeStats:
@@ -59,6 +59,37 @@ def aggregate_factory_by_recipe(buildings):
     return by_recipe
 
 
+class ItemStats:
+    __slots__ = ("item", "produced", "consumed")
+
+    def __init__(self, item):
+        self.item = item
+        self.produced = 0.0
+        self.consumed = 0.0
+
+
+def aggregate_items(buildings):
+    """Aggregate produced/consumed rates per item name across ALL buildings,
+    regardless of which recipe/machine they come from. This is what actually
+    answers "is production of this item keeping up with what's consuming
+    it" — recipe-scoped totals conflate a recipe's own ingredients with its
+    output and can't answer that.
+    """
+    by_item = {}
+    for building in buildings:
+        for entry in building.get("production") or []:
+            name = entry.get("Name", "?")
+            stats = by_item.setdefault(name, ItemStats(name))
+            stats.produced += entry.get("CurrentProd") or 0.0
+
+        for entry in building.get("ingredients") or []:
+            name = entry.get("Name", "?")
+            stats = by_item.setdefault(name, ItemStats(name))
+            stats.consumed += entry.get("CurrentConsumed") or 0.0
+
+    return by_item
+
+
 def total_power(power_circuits):
     """Sum production/consumption/capacity across all circuits."""
     production = sum((c.get("PowerProduction") or 0.0) for c in power_circuits)
@@ -76,9 +107,11 @@ class SharedState:
         self.lock = threading.Lock()
         self.session_info = None
         self.recipes: dict[str, RecipeStats] = {}
+        self.items: dict[str, ItemStats] = {}
         self.power_circuits: list[dict] = []
         self.power_history: deque = deque(maxlen=HISTORY_MAXLEN)
         self.history: dict[str, deque] = defaultdict(lambda: deque(maxlen=HISTORY_MAXLEN))
+        self.item_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=HISTORY_MAXLEN))
         self.connected = False
         self.last_error = None
 
@@ -129,16 +162,21 @@ class Poller(threading.Thread):
                 self.state.last_error = str(exc)
             return
 
-        by_recipe = aggregate_factory_by_recipe(buildings or [])
+        buildings = buildings or []
+        by_recipe = aggregate_factory_by_recipe(buildings)
+        by_item = aggregate_items(buildings)
         timestamp = datetime.now()
 
         with self.state.lock:
             self.state.connected = True
             self.state.last_error = None
             self.state.recipes = by_recipe
+            self.state.items = by_item
             self.state.power_circuits = power_circuits or []
             for recipe, stats in by_recipe.items():
                 self.state.history[recipe].append((timestamp, stats.total_produced, stats.total_consumed))
+            for item, stats in by_item.items():
+                self.state.item_history[item].append((timestamp, stats.produced, stats.consumed))
 
             production, consumption, capacity = total_power(self.state.power_circuits)
             self.state.power_history.append((timestamp, production, consumption, capacity))
